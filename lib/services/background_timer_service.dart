@@ -36,7 +36,8 @@ class TimerState {
   Duration get timeRemaining {
     if (awayModeEnabled && awayModeUntil != null) {
       if (DateTime.now().isBefore(awayModeUntil!)) {
-        return const Duration(days: 365); // Effectively infinite during away mode
+        return const Duration(
+            days: 365); // Effectively infinite during away mode
       }
     }
 
@@ -101,8 +102,10 @@ class BackgroundTimerService extends StateNotifier<TimerState> {
 
     state = TimerState(
       lastCheckIn: lastCheckIn,
-      checkIntervalHours: settings?.checkIntervalHours ?? AppConstants.defaultCheckIntervalHours,
-      gracePeriodSeconds: settings?.gracePeriodSeconds ?? AppConstants.defaultGracePeriodSeconds,
+      checkIntervalHours: settings?.checkIntervalHours ??
+          AppConstants.defaultCheckIntervalHours,
+      gracePeriodSeconds: settings?.gracePeriodSeconds ??
+          AppConstants.defaultGracePeriodSeconds,
       awayModeEnabled: localStorage.getAwayModeEnabled(),
       awayModeUntil: localStorage.getAwayModeUntil(),
     );
@@ -239,7 +242,6 @@ void callbackDispatcher() {
 Future<void> initializeBackgroundTasks() async {
   await Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: false,
   );
 
   // Register periodic task

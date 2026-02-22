@@ -111,9 +111,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           ),
         ],
       ),
-      body: _contacts.isEmpty
-          ? _buildEmptyState()
-          : _buildContactsList(),
+      body: _contacts.isEmpty ? _buildEmptyState() : _buildContactsList(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addContact,
         icon: const Icon(Icons.add),
@@ -333,9 +331,7 @@ class _AddContactFormState extends State<_AddContactForm> {
         userId: 'user1',
         name: _nameController.text,
         phone: _phoneController.text,
-        email: _emailController.text.isNotEmpty
-            ? _emailController.text
-            : null,
+        email: _emailController.text.isNotEmpty ? _emailController.text : null,
         relationship: _selectedRelationship,
         isVerified: false,
         priority: 1,

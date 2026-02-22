@@ -8,7 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme.dart';
 import '../../core/constants/app_constants.dart';
 
-/// Alert Screen - Full screen countdown for grace period
+/// Alert Screen - Full screen immersive countdown for grace period
 class AlertScreen extends StatefulWidget {
   const AlertScreen({super.key});
 
@@ -22,7 +22,7 @@ class _AlertScreenState extends State<AlertScreen>
   Timer? _timer;
   final AudioPlayer _audioPlayer = AudioPlayer();
   late AnimationController _pulseController;
-  late AnimationController _shakeController;
+  late AnimationController _borderController;
 
   bool _canVibrate = false;
   bool _alertSent = false;
@@ -37,31 +37,26 @@ class _AlertScreenState extends State<AlertScreen>
   void _initControllers() {
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    _shakeController = AnimationController(
+    _borderController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
   }
 
   Future<void> _startAlertSequence() async {
-    // Check vibration capability
     _canVibrate = await Vibration.hasVibrator();
 
-    // Start vibration pattern
     if (_canVibrate) {
       _startVibrationPattern();
     }
 
-    // Start countdown
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (_countdown > 0) {
           _countdown--;
-
-          // Pulse vibration each second
           if (_canVibrate) {
             HapticFeedback.heavyImpact();
           }
@@ -74,11 +69,9 @@ class _AlertScreenState extends State<AlertScreen>
   }
 
   void _startVibrationPattern() async {
-    // Initial long vibration
     Vibration.vibrate();
     await Future.delayed(const Duration(milliseconds: 500));
 
-    // Repeated pulse pattern
     for (int i = 0; i < 3; i++) {
       if (!mounted) return;
       HapticFeedback.mediumImpact();
@@ -90,27 +83,33 @@ class _AlertScreenState extends State<AlertScreen>
     if (_alertSent) return;
     _alertSent = true;
 
-    // Stop audio
     await _audioPlayer.stop();
 
-    // Show alert sent confirmation
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
             children: [
-              Icon(Icons.send, color: AppColors.white),
+              Icon(Icons.send_rounded, color: AppColors.white),
               SizedBox(width: 12),
-              Text('Emergency alert sent to your contacts!'),
+              Expanded(
+                child: Text(
+                  'Emergency alert sent to your contacts!',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
             ],
           ),
           backgroundColor: AppColors.criticalColor,
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 5),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       );
 
-      // Navigate to home after a delay
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
         context.go('/home');
@@ -123,20 +122,22 @@ class _AlertScreenState extends State<AlertScreen>
     await _audioPlayer.stop();
 
     if (mounted) {
-      // Show cancellation feedback
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
             children: [
-              Icon(Icons.check_circle, color: AppColors.white),
+              Icon(Icons.check_circle_rounded, color: AppColors.white),
               SizedBox(width: 12),
-              Text('Alert cancelled. Timer has been reset.'),
+              Text(
+                'Alert cancelled. You\'re safe!',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
           backgroundColor: AppColors.calmColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           margin: const EdgeInsets.all(16),
         ),
@@ -151,132 +152,100 @@ class _AlertScreenState extends State<AlertScreen>
     _timer?.cancel();
     _audioPlayer.dispose();
     _pulseController.dispose();
-    _shakeController.dispose();
+    _borderController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Keep screen on and prevent screen capture
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    final progress = _countdown / AppConstants.defaultGracePeriodSeconds;
+    final isUrgent = _countdown < 5;
+
     return PopScope(
-      canPop: false, // Prevent back button
+      canPop: false,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppColors.criticalGradientStart,
-                AppColors.criticalGradientEnd,
+                Color(0xFF1A0000),
+                Color(0xFF3D0000),
+                Color(0xFF1A0000),
               ],
+              stops: [0.0, 0.5, 1.0],
             ),
           ),
           child: SafeArea(
             child: Stack(
               children: [
-                // Background pulse animation
+                // Animated background rings
                 _buildBackgroundPulse(),
 
                 // Main content
                 Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppDesignTokens.spacing24),
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Warning Icon
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppColors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 80,
-                            color: AppColors.white,
-                          ),
-                        )
-                            .animate(onPlay: (c) => c.repeat())
-                            .shake(duration: 500.ms, hz: 4),
+                        const Spacer(flex: 2),
 
-                        const SizedBox(height: AppDesignTokens.spacing32),
+                        // Warning icon with glow
+                        _buildWarningIcon(isUrgent),
+
+                        const SizedBox(height: 32),
 
                         // Title
                         Text(
                           'MISSED CHECK-IN',
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.headlineMedium(
-                            color: AppColors.white,
-                            weight: FontWeight.bold,
+                          style: AppTextStyles.overline(
+                            color:
+                                AppColors.criticalLight.withValues(alpha: 0.8),
+                            weight: FontWeight.w800,
+                          ).copyWith(
+                            fontSize: 14,
+                            letterSpacing: 4,
                           ),
                         )
                             .animate()
                             .fadeIn(duration: 300.ms)
                             .slideY(begin: -0.2),
 
-                        const SizedBox(height: AppDesignTokens.spacing8),
+                        const SizedBox(height: 12),
 
-                        // Subtitle
                         Text(
-                          'Alerting emergency contacts in:',
+                          'Alerting contacts in',
                           textAlign: TextAlign.center,
                           style: AppTextStyles.titleMedium(
-                            color: AppColors.white.withValues(alpha: 0.8),
+                            color: AppColors.white.withValues(alpha: 0.7),
                           ),
                         ),
 
-                        const SizedBox(height: AppDesignTokens.spacing40),
+                        const SizedBox(height: 32),
 
-                        // Countdown
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: Text(
-                            '$_countdown',
-                            key: ValueKey(_countdown),
-                            style: AppTextStyles.countdownTimer(
-                              color: AppColors.white,
-                              fontSize: 140,
-                            ),
-                          ),
-                        )
-                            .animate(
-                              onPlay: (controller) =>
-                                  _countdown < 10 ? controller.repeat() : null,
-                            )
-                            .scale(
-                              begin: const Offset(1.05, 1.05),
-                              end: const Offset(1, 1),
-                              duration: 500.ms,
-                            ),
+                        // Countdown with ring
+                        _buildCountdownRing(progress, isUrgent),
 
-                        const SizedBox(height: AppDesignTokens.spacing8),
+                        const SizedBox(height: 12),
 
                         Text(
                           'seconds',
-                          style: AppTextStyles.titleLarge(
-                            color: AppColors.white.withValues(alpha: 0.8),
+                          style: AppTextStyles.bodyLarge(
+                            color: AppColors.white.withValues(alpha: 0.5),
                           ),
                         ),
 
-                        const Spacer(),
+                        const Spacer(flex: 2),
 
                         // Cancel Button
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppDesignTokens.spacing32,
-                          ),
-                          child: _SafeButton(
-                            onPressed: _cancelAlert,
-                          ),
-                        ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.3),
+                        _SafeButton(onPressed: _cancelAlert),
 
-                        const SizedBox(height: AppDesignTokens.spacing32),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
@@ -289,6 +258,89 @@ class _AlertScreenState extends State<AlertScreen>
     );
   }
 
+  Widget _buildWarningIcon(bool isUrgent) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.criticalColor.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.criticalColor.withValues(alpha: 0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.criticalColor.withValues(alpha: 0.2),
+            blurRadius: 40,
+            spreadRadius: 10,
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.warning_rounded,
+        size: 48,
+        color: AppColors.criticalLight,
+      ),
+    )
+        .animate(onPlay: (c) => c.repeat())
+        .shake(duration: 600.ms, hz: 3, delay: 2000.ms);
+  }
+
+  Widget _buildCountdownRing(double progress, bool isUrgent) {
+    return SizedBox(
+      width: 200,
+      height: 200,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Background ring
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: CircularProgressIndicator(
+              value: 1.0,
+              strokeWidth: 6,
+              strokeCap: StrokeCap.round,
+              color: AppColors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          // Progress ring
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 6,
+              strokeCap: StrokeCap.round,
+              color:
+                  isUrgent ? AppColors.criticalLight : AppColors.criticalColor,
+            ),
+          ),
+          // Countdown number
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              '$_countdown',
+              key: ValueKey(_countdown),
+              style: AppTextStyles.countdownTimer(
+                color: AppColors.white,
+                fontSize: isUrgent ? 80 : 72,
+              ),
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate(
+          onPlay: (controller) => isUrgent ? controller.repeat() : null,
+        )
+        .scale(
+          begin: isUrgent ? const Offset(1.04, 1.04) : const Offset(1, 1),
+          end: const Offset(1, 1),
+          duration: 500.ms,
+        );
+  }
+
   Widget _buildBackgroundPulse() {
     return AnimatedBuilder(
       animation: _pulseController,
@@ -298,9 +350,9 @@ class _AlertScreenState extends State<AlertScreen>
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.center,
-                radius: 0.5 + (_pulseController.value * 0.3),
+                radius: 0.4 + (_pulseController.value * 0.3),
                 colors: [
-                  AppColors.white.withValues(alpha: 0.1),
+                  AppColors.criticalColor.withValues(alpha: 0.08),
                   Colors.transparent,
                 ],
               ),
@@ -338,17 +390,16 @@ class _SafeButtonState extends State<_SafeButton> {
         scale: _isPressed ? 0.95 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppDesignTokens.spacing24,
-          ),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(AppDesignTokens.radius20),
             boxShadow: [
               BoxShadow(
-                color: AppColors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color: AppColors.white.withValues(alpha: 0.15),
+                blurRadius: 24,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -356,7 +407,7 @@ class _SafeButtonState extends State<_SafeButton> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: const BoxDecoration(
                   color: AppColors.calmColor,
                   shape: BoxShape.circle,
@@ -364,22 +415,25 @@ class _SafeButtonState extends State<_SafeButton> {
                 child: const Icon(
                   Icons.check,
                   color: AppColors.white,
-                  size: 24,
+                  size: 18,
                 ),
               ),
-              const SizedBox(width: AppDesignTokens.spacing16),
+              const SizedBox(width: 14),
               Text(
                 'I AM SAFE',
                 style: AppTextStyles.headlineSmall(
                   color: AppColors.calmColor,
-                  weight: FontWeight.bold,
+                  weight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
       ),
-    );
+    )
+        .animate()
+        .fadeIn(delay: 300.ms, duration: 500.ms)
+        .slideY(begin: 0.3, curve: Curves.easeOutCubic);
   }
 }
 

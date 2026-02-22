@@ -293,8 +293,7 @@ class ProfileSettingsScreen extends ConsumerStatefulWidget {
       _ProfileSettingsScreenState();
 }
 
-class _ProfileSettingsScreenState
-    extends ConsumerState<ProfileSettingsScreen> {
+class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   final _nameController = TextEditingController(text: 'John Doe');
   final _phoneController = TextEditingController(text: '+1234567890');
   String _selectedGender = 'Male';
@@ -419,9 +418,10 @@ class _ProfileSettingsScreenState
               onTap: () async {
                 final date = await showDatePicker(
                   context: context,
-                  initialDate: _dateOfBirth ?? DateTime.now().subtract(
-                    const Duration(days: 365 * 25),
-                  ),
+                  initialDate: _dateOfBirth ??
+                      DateTime.now().subtract(
+                        const Duration(days: 365 * 25),
+                      ),
                   firstDate: DateTime(1920),
                   lastDate: DateTime.now(),
                 );
@@ -449,8 +449,7 @@ class MedicalSettingsScreen extends ConsumerStatefulWidget {
       _MedicalSettingsScreenState();
 }
 
-class _MedicalSettingsScreenState
-    extends ConsumerState<MedicalSettingsScreen> {
+class _MedicalSettingsScreenState extends ConsumerState<MedicalSettingsScreen> {
   String _selectedBloodGroup = 'Unknown';
   final _allergiesController = TextEditingController();
   final _medicationsController = TextEditingController();
@@ -489,7 +488,8 @@ class _MedicalSettingsScreenState
               decoration: BoxDecoration(
                 color: AppColors.info.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppDesignTokens.radius16),
-                border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                border:
+                    Border.all(color: AppColors.info.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -513,9 +513,17 @@ class _MedicalSettingsScreenState
                 labelText: 'Blood Group',
                 prefixIcon: Icon(Icons.bloodtype_outlined),
               ),
-              items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
-                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                  .toList(),
+              items: [
+                'A+',
+                'A-',
+                'B+',
+                'B-',
+                'AB+',
+                'AB-',
+                'O+',
+                'O-',
+                'Unknown'
+              ].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
               onChanged: (value) {
                 if (value != null) {
                   setState(() {
@@ -576,8 +584,7 @@ class SafetySettingsScreen extends ConsumerStatefulWidget {
       _SafetySettingsScreenState();
 }
 
-class _SafetySettingsScreenState
-    extends ConsumerState<SafetySettingsScreen> {
+class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
   int _checkIntervalHours = 24;
   int _gracePeriodSeconds = 15;
 
