@@ -1,451 +1,237 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme.dart';
-import '../../core/widgets/widgets.dart';
-import '../../core/utils/snackbar_helper.dart';
-import '../../models/models.dart';
 
-/// Contacts Screen - Manage emergency contacts
+/// Local contacts provider for testing
+final _contactsProvider = StateProvider<List<_ContactItem>>((ref) => [
+  _ContactItem(name: 'Mom', phone: '+1 234 567 8900', relationship: 'Mother', isVerified: true),
+  _ContactItem(name: 'Dad', phone: '+1 234 567 8901', relationship: 'Father', isVerified: false),
+]);
+
+class _ContactItem {
+  final String name, phone, relationship;
+  final bool isVerified;
+  _ContactItem({required this.name, required this.phone, required this.relationship, this.isVerified = false});
+}
+
 class ContactsScreen extends ConsumerStatefulWidget {
   const ContactsScreen({super.key});
-
   @override
   ConsumerState<ContactsScreen> createState() => _ContactsScreenState();
 }
 
 class _ContactsScreenState extends ConsumerState<ContactsScreen> {
-  final List<EmergencyContact> _contacts = [
-    EmergencyContact(
-      id: '1',
-      userId: 'user1',
-      name: 'Mom',
-      phone: '+1234567890',
-      email: 'mom@example.com',
-      relationship: 'Mother',
-      isVerified: true,
-      priority: 1,
-      createdAt: DateTime.now(),
-    ),
-  ];
+  void _showAddContact() {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    String selectedRelation = 'Friend';
 
-  void _addContact() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDesignTokens.radius24),
-        ),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          left: AppDesignTokens.spacing24,
-          right: AppDesignTokens.spacing24,
-          top: AppDesignTokens.spacing24,
-        ),
-        child: _AddContactForm(
-          onAdd: (contact) {
-            setState(() {
-              _contacts.add(contact);
-            });
-            Navigator.pop(ctx);
-            SnackBarHelper.showSuccess(
-              context,
-              'Verification email sent to ${contact.email ?? contact.phone}',
-            );
-          },
-        ),
-      ),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return StatefulBuilder(builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: Container(width: 40, height: 4,
+                    decoration: BoxDecoration(color: AppColors.grey300,
+                        borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 20),
+                Text('Add Contact', style: AppTextStyles.titleLarge(
+                    color: isDark ? AppColors.white : AppColors.grey900)),
+                const SizedBox(height: 20),
+                TextFormField(controller: nameCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline, size: 20))),
+                const SizedBox(height: 14),
+                TextFormField(controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                        labelText: 'Phone', prefixIcon: Icon(Icons.phone_outlined, size: 20))),
+                const SizedBox(height: 14),
+                Text('RELATIONSHIP', style: AppTextStyles.overline(color: AppColors.grey400)),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8,
+                    children: ['Mother', 'Father', 'Sibling', 'Partner', 'Friend', 'Other'].map((r) {
+                      return GestureDetector(
+                        onTap: () => setSheetState(() => selectedRelation = r),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: selectedRelation == r ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppDesignTokens.radiusFull),
+                            border: Border.all(
+                                color: selectedRelation == r ? AppColors.primary :
+                                    (isDark ? AppColors.grey700 : AppColors.grey200)),
+                          ),
+                          child: Text(r, style: AppTextStyles.labelMedium(
+                              color: selectedRelation == r ? AppColors.white :
+                                  (isDark ? AppColors.grey300 : AppColors.grey600))),
+                        ),
+                      );
+                    }).toList()),
+                const SizedBox(height: 24),
+                SizedBox(height: 54, child: ElevatedButton(
+                  onPressed: () {
+                    if (nameCtrl.text.isNotEmpty && phoneCtrl.text.isNotEmpty) {
+                      final list = List<_ContactItem>.from(ref.read(_contactsProvider));
+                      list.add(_ContactItem(
+                          name: nameCtrl.text, phone: phoneCtrl.text,
+                          relationship: selectedRelation));
+                      ref.read(_contactsProvider.notifier).state = list;
+                      Navigator.pop(ctx);
+                    }
+                  },
+                  child: const Text('Add Contact'),
+                )),
+              ],
+            ),
+          );
+        });
+      },
     );
   }
 
   void _deleteContact(int index) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Contact'),
-        content: Text(
-          'Are you sure you want to remove ${_contacts[index].name} from your emergency contacts?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.criticalColor,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                _contacts.removeAt(index);
-              });
-              SnackBarHelper.showInfo(context, 'Contact removed');
-            },
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _resendVerification(EmergencyContact contact) {
-    SnackBarHelper.showInfo(
-      context,
-      'Verification email resent to ${contact.email ?? contact.phone}',
-    );
+    final list = List<_ContactItem>.from(ref.read(_contactsProvider));
+    list.removeAt(index);
+    ref.read(_contactsProvider.notifier).state = list;
   }
 
   @override
   Widget build(BuildContext context) {
+    final contacts = ref.watch(_contactsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('Emergency Contacts'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _addContact,
-            tooltip: 'Add Contact',
-          ),
+          IconButton(icon: const Icon(Icons.person_add_rounded),
+              onPressed: _showAddContact),
         ],
       ),
-      body: _contacts.isEmpty ? _buildEmptyState() : _buildContactsList(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addContact,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Contact'),
+      body: contacts.isEmpty
+          ? Center(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.people_outline_rounded, size: 64, color: AppColors.grey300),
+                const SizedBox(height: 16),
+                Text('No contacts yet', style: AppTextStyles.titleMedium(color: AppColors.grey400)),
+                const SizedBox(height: 8),
+                Text('Add people to alert in emergencies.',
+                    style: AppTextStyles.bodySmall(color: AppColors.grey400)),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                    onPressed: _showAddContact,
+                    icon: const Icon(Icons.add, size: 20),
+                    label: const Text('Add Contact')),
+              ],
+            ))
+          : ListView.builder(
+              padding: const EdgeInsets.all(24),
+              itemCount: contacts.length,
+              itemBuilder: (ctx, i) {
+                final c = contacts[i];
+                return _ContactCard(
+                  contact: c,
+                  isDark: isDark,
+                  onDelete: () => _deleteContact(i),
+                  onVerify: () {
+                    final list = List<_ContactItem>.from(ref.read(_contactsProvider));
+                    list[i] = _ContactItem(name: c.name, phone: c.phone,
+                        relationship: c.relationship, isVerified: true);
+                    ref.read(_contactsProvider.notifier).state = list;
+                  },
+                ).animate().fadeIn(delay: Duration(milliseconds: 100 * i), duration: 400.ms)
+                    .slideX(begin: 0.1);
+              },
+            ),
+      floatingActionButton: contacts.isNotEmpty ? FloatingActionButton(
+        onPressed: _showAddContact,
         backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDesignTokens.spacing32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.grey100,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.contacts_outlined,
-                size: 60,
-                color: AppColors.grey400,
-              ),
-            ),
-            const SizedBox(height: AppDesignTokens.spacing24),
-            Text(
-              'No Emergency Contacts',
-              style: AppTextStyles.headlineSmall(),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppDesignTokens.spacing12),
-            Text(
-              'Add trusted contacts who will be notified in case of an emergency.',
-              style: AppTextStyles.bodyLarge(color: AppColors.grey500),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppDesignTokens.spacing32),
-            PrimaryButton(
-              text: 'Add Your First Contact',
-              icon: Icons.add,
-              onPressed: _addContact,
-              width: 280,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppDesignTokens.spacing16),
-      itemCount: _contacts.length,
-      itemBuilder: (context, index) {
-        final contact = _contacts[index];
-        return _ContactCard(
-          contact: contact,
-          onDelete: () => _deleteContact(index),
-          onResendVerification: () => _resendVerification(contact),
-        );
-      },
+        child: const Icon(Icons.add_rounded, color: AppColors.white),
+      ) : null,
     );
   }
 }
 
 class _ContactCard extends StatelessWidget {
-  const _ContactCard({
-    required this.contact,
-    required this.onDelete,
-    required this.onResendVerification,
-  });
-
-  final EmergencyContact contact;
+  final _ContactItem contact;
+  final bool isDark;
   final VoidCallback onDelete;
-  final VoidCallback onResendVerification;
+  final VoidCallback onVerify;
+  const _ContactCard({required this.contact, required this.isDark,
+      required this.onDelete, required this.onVerify});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppDesignTokens.spacing12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDesignTokens.radius16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppDesignTokens.spacing16),
-        child: Row(
-          children: [
-            // Avatar
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
-                child: Text(
-                  contact.initials,
-                  style: AppTextStyles.headlineSmall(
-                    color: AppColors.primary,
-                    weight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(width: AppDesignTokens.spacing16),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        contact.name,
-                        style: AppTextStyles.titleSmall(),
-                      ),
-                      if (!contact.isVerified) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.warningBackground,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Pending',
-                            style: AppTextStyles.labelSmall(
-                              color: AppColors.warningDark,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    contact.relationship,
-                    style: AppTextStyles.bodySmall(color: AppColors.grey500),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    contact.email ?? contact.phone,
-                    style: AppTextStyles.bodySmall(color: AppColors.grey400),
-                  ),
-                ],
-              ),
-            ),
-
-            // Actions
-            Column(
-              children: [
-                if (!contact.isVerified)
-                  TextButton(
-                    onPressed: onResendVerification,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: const Text('Resend'),
-                  ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.criticalColor,
-                  ),
-                  onPressed: onDelete,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddContactForm extends StatefulWidget {
-  const _AddContactForm({required this.onAdd});
-
-  final Function(EmergencyContact) onAdd;
-
-  @override
-  State<_AddContactForm> createState() => _AddContactFormState();
-}
-
-class _AddContactFormState extends State<_AddContactForm> {
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  String _selectedRelationship = 'Friend';
-  final _formKey = GlobalKey<FormState>();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      final contact = EmergencyContact(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: 'user1',
-        name: _nameController.text,
-        phone: _phoneController.text,
-        email: _emailController.text.isNotEmpty ? _emailController.text : null,
-        relationship: _selectedRelationship,
-        isVerified: false,
-        priority: 1,
-        createdAt: DateTime.now(),
-      );
-      widget.onAdd(contact);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: GlassmorphismDecoration.safeCard(context),
+      child: Row(
         children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.grey300,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          // Avatar
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: contact.isVerified
+                      ? [AppColors.calmColor, AppColors.calmDark]
+                      : [AppColors.grey300, AppColors.grey400]),
+              borderRadius: BorderRadius.circular(14),
             ),
+            child: Center(child: Text(
+                contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
+                style: AppTextStyles.titleMedium(
+                    color: AppColors.white, weight: FontWeight.w700))),
           ),
-          const SizedBox(height: AppDesignTokens.spacing24),
-
-          Text(
-            'Add Emergency Contact',
-            style: AppTextStyles.headlineSmall(),
-          ),
-          const SizedBox(height: AppDesignTokens.spacing24),
-
-          TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a name';
-              }
-              return null;
+          const SizedBox(width: 14),
+          // Info
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(contact.name, style: AppTextStyles.titleSmall(
+                    color: isDark ? AppColors.white : AppColors.grey900)),
+                const SizedBox(width: 6),
+                if (contact.isVerified)
+                  const Icon(Icons.verified_rounded, size: 16, color: AppColors.calmColor),
+              ]),
+              const SizedBox(height: 2),
+              Text('${contact.relationship} • ${contact.phone}',
+                  style: AppTextStyles.bodySmall(color: AppColors.grey400)),
+            ],
+          )),
+          // Actions
+          if (!contact.isVerified)
+            TextButton(onPressed: onVerify,
+                child: Text('Verify', style: AppTextStyles.labelSmall(color: AppColors.primary))),
+          IconButton(
+            icon: Icon(Icons.delete_outline, size: 20, color: AppColors.grey400),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Delete Contact?'),
+                  content: Text('Remove ${contact.name} from your emergency contacts?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    TextButton(onPressed: () { Navigator.pop(ctx); onDelete(); },
+                        child: const Text('Delete', style: TextStyle(color: AppColors.criticalColor))),
+                  ],
+                ),
+              );
             },
           ),
-
-          const SizedBox(height: AppDesignTokens.spacing16),
-
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              prefixIcon: Icon(Icons.phone_outlined),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a phone number';
-              }
-              return null;
-            },
-          ),
-
-          const SizedBox(height: AppDesignTokens.spacing16),
-
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email (optional)',
-              prefixIcon: Icon(Icons.email_outlined),
-            ),
-          ),
-
-          const SizedBox(height: AppDesignTokens.spacing16),
-
-          DropdownButtonFormField<String>(
-            initialValue: _selectedRelationship,
-            decoration: const InputDecoration(
-              labelText: 'Relationship',
-              prefixIcon: Icon(Icons.people_outline),
-            ),
-            items: [
-              'Mother',
-              'Father',
-              'Sister',
-              'Brother',
-              'Spouse',
-              'Partner',
-              'Friend',
-              'Colleague',
-              'Other',
-            ].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedRelationship = value;
-                });
-              }
-            },
-          ),
-
-          const SizedBox(height: AppDesignTokens.spacing24),
-
-          PrimaryButton(
-            text: 'Add & Send Verification',
-            onPressed: _submit,
-          ),
-
-          const SizedBox(height: AppDesignTokens.spacing24),
         ],
       ),
     );

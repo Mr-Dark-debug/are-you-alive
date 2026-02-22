@@ -79,7 +79,8 @@ class _PulseCheckInButtonState extends State<PulseCheckInButton>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: statusColor.withValues(alpha: 0.3 + (_pulseController.value * 0.2)),
+                        color: statusColor.withValues(
+                            alpha: 0.3 + (_pulseController.value * 0.2)),
                         blurRadius: 30,
                         spreadRadius: 5 + (_pulseController.value * 10),
                       ),
@@ -143,8 +144,8 @@ class _PulseCheckInButtonState extends State<PulseCheckInButton>
 }
 
 /// Animated builder for pulse effect (simple version)
-class AnimatedBuilder extends AnimatedWidget {
-  const AnimatedBuilder({
+class PulseAnimatedBuilder extends AnimatedWidget {
+  const PulseAnimatedBuilder({
     super.key,
     required Animation<double> animation,
     required this.builder,

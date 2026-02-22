@@ -11,68 +11,53 @@ import '../features/contacts/contacts_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../services/local_storage_service.dart';
 
-/// Router provider
 final routerProvider = Provider<GoRouter>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
 
   return GoRouter(
     initialLocation: '/onboarding',
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
     routes: [
-      // Onboarding
       GoRoute(
         path: '/onboarding',
         name: 'onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-
-      // Authentication
       GoRoute(
         path: '/auth',
         name: 'auth',
         builder: (context, state) => const AuthScreen(),
       ),
-
-      // Home / Dashboard
       GoRoute(
         path: '/home',
         name: 'home',
         builder: (context, state) => const HomeScreen(),
       ),
-
-      // Alert (Grace Period)
       GoRoute(
         path: '/alert',
         name: 'alert',
         builder: (context, state) => const AlertScreen(),
       ),
-
-      // Contacts
       GoRoute(
         path: '/contacts',
         name: 'contacts',
         builder: (context, state) => const ContactsScreen(),
       ),
-
-      // Settings
       GoRoute(
         path: '/settings',
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
         routes: [
-          // Profile Settings
           GoRoute(
             path: 'profile',
             name: 'settings-profile',
             builder: (context, state) => const ProfileSettingsScreen(),
           ),
-          // Medical Settings
           GoRoute(
             path: 'medical',
             name: 'settings-medical',
             builder: (context, state) => const MedicalSettingsScreen(),
           ),
-          // Safety Settings
           GoRoute(
             path: 'safety',
             name: 'settings-safety',
@@ -80,8 +65,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-
-      // Female Safety Features
       GoRoute(
         path: '/fake-call',
         name: 'fake-call',
@@ -94,69 +77,36 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
-      appBar: AppBar(title: const Text('Error')),
-      body: Center(
-        child: Text('Page not found: ${state.error}'),
-      ),
+      body: Center(child: Text('Page not found: ${state.error}')),
     ),
     redirect: (context, state) {
       final hasSeenOnboarding = localStorage.hasSeenOnboarding;
-      final hasCompletedSetup = localStorage.hasCompletedSetup;
-      final currentPath = state.matchedLocation;
+      final path = state.matchedLocation;
 
-      // If onboarding not seen, stay on onboarding
-      if (!hasSeenOnboarding && currentPath != '/onboarding') {
+      // First time — go to onboarding
+      if (!hasSeenOnboarding && path != '/onboarding') {
         return '/onboarding';
       }
 
-      // If onboarding complete but setup not done, go to auth
-      if (hasSeenOnboarding && !hasCompletedSetup && currentPath != '/auth') {
+      // After onboarding, go to auth (but let auth "skip" to home)
+      if (hasSeenOnboarding && path == '/onboarding') {
         return '/auth';
       }
 
-      // If all setup complete, go to home
-      if (hasSeenOnboarding && hasCompletedSetup && currentPath == '/onboarding') {
-        return '/home';
-      }
-
-      return null;
+      return null; // no redirect
     },
   );
 });
 
-/// Navigation helpers
 class AppNavigation {
   AppNavigation._();
-
-  static void goToOnboarding(BuildContext context) {
-    context.go('/onboarding');
-  }
-
-  static void goToAuth(BuildContext context) {
-    context.go('/auth');
-  }
-
-  static void goToHome(BuildContext context) {
-    context.go('/home');
-  }
-
-  static void goToAlert(BuildContext context) {
-    context.go('/alert');
-  }
-
-  static void goToContacts(BuildContext context) {
-    context.push('/contacts');
-  }
-
-  static void goToSettings(BuildContext context) {
-    context.push('/settings');
-  }
-
-  static void goToFakeCall(BuildContext context) {
-    context.push('/fake-call');
-  }
-
-  static void goToWalkWithMe(BuildContext context) {
-    context.push('/walk-with-me');
-  }
+  static void goToOnboarding(BuildContext context) => context.go('/onboarding');
+  static void goToAuth(BuildContext context) => context.go('/auth');
+  static void goToHome(BuildContext context) => context.go('/home');
+  static void goToAlert(BuildContext context) => context.go('/alert');
+  static void goToContacts(BuildContext context) => context.push('/contacts');
+  static void goToSettings(BuildContext context) => context.push('/settings');
+  static void goToFakeCall(BuildContext context) => context.push('/fake-call');
+  static void goToWalkWithMe(BuildContext context) =>
+      context.push('/walk-with-me');
 }
